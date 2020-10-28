@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #
 # Copyright 2009 Dan Smith <dsmith@danplanet.com>
-# review 2015 Maurizio Andreotti  <iz2lxi@yahoo.it>
+# review 2015-2020 Maurizio Andreotti  <iz2lxi@yahoo.it>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,10 @@
 
 from __future__ import absolute_import
 from __future__ import print_function
+
+#importing printlog() wrapper
+from .debug import printlog
+
 import gtk
 import gtk.glade
 import gobject
@@ -42,6 +46,7 @@ from six.moves import range
 
 BAUD_RATES = ["1200", "2400", "4800", "9600", "19200", "38400", "115200"]
 
+#these settings are used to popoulate the config when D-Rats is executed the first time
 _DEF_USER = {
     "name" : "A. Mateur",
     "callsign" : "",
@@ -97,7 +102,6 @@ _DEF_PREFS = {
     "msg_wl2k_rmsport" : "",
 }
 
-#these settings are used to popoulate the config when D-Rats is executed the first time
 _DEF_SETTINGS = {
     "socket_pw" : "",
     "ddt_block_size" : "512",
@@ -115,7 +119,11 @@ _DEF_SETTINGS = {
     "sockflush" : "0.5",
     "pipelinexfers" : "True",
     
-    # MAP WINDOW
+    #Weather APIs
+    "qst_owuri" : "https://api.openweathermap.org/data/2.5/",
+    "qst_owappid" : "ecd42c31b76e59e83de5cb8c16f7bd95a",
+    
+    #MAPS APIs
     "mapdir" : os.path.join(dplatform.get_platform().config_dir(), "maps"),
     "maptype": "base",
     #"mapurlbase":  "http://a.tile.openstreetmap.org/", 
@@ -131,10 +139,10 @@ _DEF_SETTINGS = {
     "mapurllandscape": "https://tile.thunderforest.com/landscape/",
     "keyformapurllandscape": "?apikey=5a1a4a79354244a38707d83969fd88a2",
     
-    # GPS
-
+    #GPS
     "default_gps_comment" : "BN  *20",     #default icon for our station in the map and gpsfixes
     "map_marker_bgcolor": "yellow",        #background color for markers in the map window
+    
     "warmup_length" : "16",                 #changed from 8 to 16 in 0.3.6
     "warmup_timeout" : "0",                #changed from 3 to 0 in 0.3.6
     "force_delay" : "-2",
@@ -149,7 +157,7 @@ _DEF_SETTINGS = {
     "sniff_packets" : "False",
     "map_tile_ttl" : "720",
 
-    "msg_flush" : "60",           #changed from 60 to 30sec in 0.3.6
+    "msg_flush" : "30",           #changed from 60 to 30sec in 0.3.6
     "msg_forward" : "True",       #changed from False to True in 0.3.6
     "station_msg_ttl" : "600",    #changed from 3660 to 600 in 0.3.6
     
@@ -170,47 +178,7 @@ _DEF_SETTINGS = {
     "delete_from" : "",
     "remote_admin_passwd" : "",
     "expire_stations" : "60",
-    #FIXME - for any reason these lines are not loaded as default config in the ports section 
-    "ports" : { #"ports_0" : "True,net:ref.d-rats.com:9000,,True,True,RAT",
-                "ports_1" : "False,net:127.0.0.1:14550,,True,False,APRS (on Localhost)",
-                "ports_2" : "False,net:dcs007.xreflector.net:9000,,True,False,EUROPE Netherlands",
-                "ports_3" : "False,/dev/ttyUSB0,9600,True,True,IC2820 ttyUSB0",
-                "ports_4" : "False,COM1,38400,True,True,ICOM E-92D COM1",
-                "ports_5" : "False,COM2,9600,True,True,ICOM ID-51 COM2",
-                "ports_6" : "False,net:w5sf.ratflector.com:9000,,True,False,MEXICO",
-                "ports_7" : "False,net:localhost:9000,,False,False,My RAT flector (on localhost)",
-                "ports_8" : "False,net:n1kxj.ddns.net:9000,,True,False,New Englad",
-                "ports_9" : "False,net:52.87.128.252:9000,,True,False,North Carolina ARES",
-                "ports_10" : "False,net:pldares.ratflector.com:9000,,True,False,PAULDIN",
-                "ports_11" : "False,net:sewx.ratflector.com:9000,,True,False,SE WX Net",
-                "ports_12" : "False,net:hs0zer.no-ip.com:9000,,True,False,THAILAND Bangkok",
-                "ports_13" : "False,net:alabama.ratflector.com:9000,,True,False,USA ALABAMA",
-                "ports_14" : "False,net:drats.auburn.edu:9000,,True,False,USA Alabama Statewide ARES",
-                "ports_15" : "False,net:cfl.ratflector.net:9000,,True,False,USA Central Florida",
-                "ports_16" : "False,net:ae5he.ratflector.com:9000,,True,False,USA EL PASO",
-                "ports_17" : "False,net:wa7fw.dstargateway.org:9000,,True,False,USA Federal Way WA",
-                "ports_18" : "False,net:gaares.ratflector.com:9000,,True,False,USA GAARES",
-                "ports_19" : "False,net:drats.gaares.org:9000,,True,False,USA Georgia Statewide ARES",
-                "ports_20" : "False,net:gwinnettares.dyndns.org:9000,,True,False,USA Gwinnett Co ARES",
-                "ports_21" : "False,net:w5mpz.org:9000,,True,False,USA NEW MEXICO Albuquerque",
-                "ports_22" : "False,net:nfl.ratflector.net:9000,,True,False,USA Northern Florida",
-                "ports_23" : "False,net:rat.gaampr.net:9000,,True,False,USA NW GA ARES",
-                "ports_24" : "False,net:k3pdr.dstargateway.org:9000,,True,False,USA Philadelphia Digital Radio Association (PDRA) K3PDR",
-                "ports_25" : "False,net:d-rats.wa7dre.org:9000,,True,False,USA Spokane Washington Digital Radio Enthusiasts",
-                "ports_26" : "False,net:StTammany.ratflector.com:9000,,True,False,USA St. Tammany Parish",
-                "ports_27" : "False,net:tn.ratflector.com:9000,,True,False,USA TENESSEE",
-                "ports_28" : "False,net:ducknest.duckdns.org:9000,,True,False,USA Texas - Big Spring",
-                "ports_29" : "False,net:W5AW.ratflector.com:9000,,True,False,USA TEXAS (W5AW)",
-                "ports_30" : "False,net:ae5he.ham-radio-op.net:9000,,True,False,USA TEXAS El Paso",
-                "ports_31" : "False,net:155.98.24.13:9000,,True,False,USA Utah Salt Lake County",
-                "ports_32" : "False,net:wa7dr.ratflector.com:9000,,True,False,USA WASHINGTON",
-                "ports_33" : "False,net:gwinnettares.ratflector.com:9000,,True,False,UTAH",
-                "ports_34" : "False,net:W5SF.ratflector.com:9000,,True,False,W5SF",
-                "ports_35" : "False,net:n1rcw.ddns.net:9000,,True,False,WX - n1rcw",
-                "ports_36" : "False,net:dcs007.ratflector.com:9000,,True,False,WX dcs007",
-                "ports_37" : "False,net:wa7dre.ratflector.com:9000,,True,False,XLX - wa7dre",
-                },
-}
+    }
 
 _DEF_STATE = {
     "main_size_x" : "640",
@@ -350,7 +318,7 @@ def prompt_for_port(portspec=None, info=None, pname=None):
     tablist = [_("Serial"), _("Network"), _("TNC"), _("Dongle"), _("AGWPE")]
 
     def chg_type(tsel, tabs, desc):
-        print(("Config    : Changed to %s" % tsel.get_active_text()))
+        printlog("Config","    : Changed to %s" % tsel.get_active_text())
         tabs.set_current_page(tsel.get_active())
 
         desc.set_markup("<span fgcolor='blue'>%s</span>" % \
@@ -473,11 +441,11 @@ class DratsConfigWidget(gtk.HBox):
         try:
             self.value = DEFAULTS[self.vsec][self.vname]
         except KeyError:
-            print(("Config    : DEFAULTS has no %s/%s" % (self.vsec, self.vname)))
+            printlog("Config","    : DEFAULTS has no %s/%s" % (self.vsec, self.vname))
             self.value = ""
 
         if not self._widget:
-            print("Config    : AAACK: No _widget in revert")
+            printlog("Config","    : AAACK: No _widget in revert")
             return
 
         if isinstance(self._widget, gtk.Entry):
@@ -489,10 +457,10 @@ class DratsConfigWidget(gtk.HBox):
         elif isinstance(self._widget, miscwidgets.FilenameBox):
             self._widget.set_filename(self.value)
         else:
-            print(("Config    : AAACK: I don't know how to do a %s" % self._widget.__class__))
+            printlog(("Config    : AAACK: I don't know how to do a %s" % self._widget.__class__))
 
     def save(self):
-        #print("Config    : "Saving %s/%s: %s" % (self.vsec, self.vname, self.value))
+        #printlog("Config","    : "Saving %s/%s: %s" % (self.vsec, self.vname, self.value))
         self.config.set(self.vsec, self.vname, self.value)
 
     def set_value(self, value):
@@ -581,14 +549,14 @@ class DratsConfigWidget(gtk.HBox):
             try:
                 confwidget.value = "%3.6f" % entry.value()
             except Exception as e:
-                print(("Config    : Invalid Coords: %s" % e))
+                printlog(("Config    : Invalid Coords: %s" % e))
                 confwidget.value = "0"
 
         w = miscwidgets.LatLonEntry()
         w.connect("changed", changed, self)
-        print(("Config    : Setting LatLon value: %s" % self.value))
+        printlog(("Config    : Setting LatLon value: %s" % self.value))
         w.set_text(self.value)
-        print(("Config    : LatLon text: %s" % w.get_text()))
+        printlog(("Config    : LatLon text: %s" % w.get_text()))
         w.show()
 
         # Dirty ugly hack!
@@ -647,7 +615,7 @@ class DratsConfigWidget(gtk.HBox):
             self.value = box.get_filename()
 
         def test_sound(button):
-            print(("Config    : Testing playback of %s" % self.value))
+            printlog(("Config    : Testing playback of %s" % self.value))
             p = dplatform.get_platform()
             p.play_sound(self.value)
 
@@ -690,7 +658,7 @@ class DratsListConfigWidget(DratsConfigWidget):
                 elif gtype == gobject.TYPE_BOOLEAN:
                     value = eval(value)
             except ValueError as e:
-                print(("Config    : Failed to convert %s for %s: %s" % (value, label, e)))
+                printlog(("Config    : Failed to convert %s for %s: %s" % (value, label, e)))
                 return []
 
             i += 1
@@ -725,7 +693,7 @@ class DratsListConfigWidget(DratsConfigWidget):
                     key = vals[0]
                 w.set_item(key, *tuple(vals))
             except Exception as e:
-                print(("Config    : Failed to set item '%s': %s" % (str(vals), e)))
+                printlog("Config","    : Failed to set item '%s': %s" % (str(vals), e))
 
         w.connect("item-set", item_set)
         w.show()
@@ -747,7 +715,7 @@ class DratsListConfigWidget(DratsConfigWidget):
             vals = [str(x) for x in vals]
             value = ",".join(vals[1:])
             label = "%s_%i" % (self.vsec, count)
-            print(("Config    : Setting %s: %s" % (label, value)))
+            printlog("Config","    : Setting %s: %s" % (label, value))
             self.config.set(self.vsec, label, value)
             count += 1
 
@@ -766,7 +734,7 @@ class DratsPanel(gtk.Table):
     def mv(self, title, *args):
         if self.row+1 == self.rows:
             self.rows += 1
-            print(("Config    : Resizing box to %i" % self.rows))
+            printlog("Config","    : Resizing box to %i" % self.rows)
             self.resize(self.rows, 2)
 
         hbox = gtk.HBox(False, 2)
@@ -996,7 +964,7 @@ class DratsGPSPanel(DratsPanel):
             from . import qst
             dprs = qst.do_dprs_calculator(config.get("settings",
                                                      "default_gps_comment"))
-            print(("Config    : Setting GPS comment to DPRS: %s " % dprs))
+            printlog("Config","    : Setting GPS comment to DPRS: %s " % dprs)
             if dprs is not None:
                 config.set("settings", "default_gps_comment", dprs)
                 val._widget.set_text(dprs)
@@ -1105,7 +1073,16 @@ class DratsChatPanel(DratsPanel):
         val = DratsConfigWidget(config, "settings", "qst_size_limit")
         val.add_numeric(1, 9999, 1)
         self.mv(_("QST Size Limit"), val)
-
+        
+        #weather api
+        val = DratsConfigWidget(config, "settings", "qst_owuri", True)
+        val.add_text()
+        self.mv(_("OpenWeather uri"), val)    
+        
+        val = DratsConfigWidget(config, "settings", "qst_owappid", True)
+        val.add_text()
+        self.mv(_("OpenWeather appid"), val)    
+        
 class DratsSoundPanel(DratsPanel):
     def __init__(self, config):
         DratsPanel.__init__(self, config)
@@ -1146,7 +1123,7 @@ class DratsRadioPanel(DratsPanel):
 
     def but_mod(self, button, lw):
         values = lw.get_item(lw.get_selected())
-        print(("Config    : Values: %s" % str(values)))
+        printlog("Config","    : Values: %s" % str(values))
         name, port, info = prompt_for_port(values[2], values[3], values[6])
         if name:
             lw.set_item(values[6], values[1], port, info, values[4], values[5], values[6])
@@ -1587,11 +1564,11 @@ class DratsInEmailPanel(DratsPanel):
             if len(val.split(",")) < 7:
                 val += ",Form"
                 config.set(section, opt, val)
-                print(("Config    : 7-8 Converted %s/%s" % (section, opt)))
+                printlog("Config","    : 7-8 Converted %s/%s" % (section, opt))
             if len(val.split(",")) < 8:
                 val += ",True"
                 config.set(section, opt, val)
-                print(("Config    : 8-9 Converted %s/%s" % (section, opt)))
+                printlog("Config","    : 8-9 Converted %s/%s" % (section, opt))
 
     def __init__(self, config):
         DratsPanel.__init__(self, config)
@@ -1765,7 +1742,7 @@ class DratsConfigUI(gtk.Dialog):
             (store, iter) = view.get_selection().get_selected()
             selected, = store.get(iter, 0)
         except Exception as e:
-            print(("Config    : Unable to find selected: %s" % e))
+            printlog("Config","    : Unable to find selected: %s" % e)
             return None
 
         for v in self.panels.values():
@@ -1777,7 +1754,7 @@ class DratsConfigUI(gtk.Dialog):
             (store, iter) = view.get_selection().get_selected()
             selected, = store.get(iter, 0)
         except Exception as e:
-            print(("Config    : Unable to find selected: %s" % e))
+            printlog("Config","    : Unable to find selected: %s" % e)
             return None
 
         for v in self.panels.values():
@@ -1875,7 +1852,7 @@ class DratsConfig(six.moves.configparser.ConfigParser):
 
         self.platform = dplatform.get_platform()
         self.filename = self.platform.config_file("d-rats.config")
-        print(("Config    : FILE: %s" % self.filename))
+        printlog("Config","    : FILE: %s" % self.filename)
         self.read(self.filename)
         self.widgets = []
 
@@ -1883,17 +1860,17 @@ class DratsConfig(six.moves.configparser.ConfigParser):
         
         #create "D-RATS Shared" folder for file transfers
         if self.get("prefs", "download_dir") == ".":
-            print(("Config    : ", os.path.join(dplatform.get_platform().default_dir(), "D-RATS Shared")))
+            printlog("Config","    : ", os.path.join(dplatform.get_platform().default_dir(), "D-RATS Shared"))
             default_dir = os.path.join(dplatform.get_platform().default_dir(),"D-RATS Shared")
             if not os.path.exists(default_dir):
-                print(("Config    : Creating directory for downloads: %s" % default_dir))
+                printlog("Config","    : Creating directory for downloads: %s" % default_dir)
                 os.mkdir(default_dir)
                 self.set("prefs", "download_dir", default_dir)
 
         #create the folder structure for storing the map tiles
         map_dir = self.get("settings", "mapdir")
         if not os.path.exists(map_dir):
-            print(("Config    :  Creating directory for maps: %s" % map_dir))
+            printlog("Config","    :  Creating directory for maps: %s" % map_dir)
             os.mkdir(map_dir)
         if not os.path.exists(os.path.join(map_dir, "base")):
             os.mkdir(os.path.join(map_dir, "base"))
@@ -1923,7 +1900,7 @@ class DratsConfig(six.moves.configparser.ConfigParser):
         try:
             return six.moves.configparser.ConfigParser.getboolean(self, sec, key)
         except:
-            print(("Config    : Failed to get boolean: %s/%s" % (sec, key)))
+            printlog("Config","    : Failed to get boolean: %s/%s" % (sec, key))
             return False
 
     def getint(self, sec, key):

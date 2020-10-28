@@ -15,6 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import
+from __future__ import print_function
+
+#importing printlog() wrapper
+from ..debug import printlog
+
 import gtk
 import gobject
 
@@ -111,8 +117,8 @@ class StationsList(MainWindowTab):
         while iter:
             station, stamp = store.get(iter, 0, 1)
             if (now - stamp) > (ttl * 60):
-                print "Expired station %s (%i minutes since heard)" % \
-                    (station, (now - stamp) / 60)
+                printlog("MainStation",": Expired station %s (%i minutes since heard)" % \
+                    (station, (now - stamp) / 60))
                 self.__calls.remove(station)
                 self._update_station_count()
                 if not store.remove(iter):
@@ -139,8 +145,7 @@ class StationsList(MainWindowTab):
             iter = model.iter_next(iter)
 
         if action == "ping":
-            print("-------------------")
-            print("MainStation: executing ping")
+            printlog("MainStation",": executing ping")
             # FIXME: Use the port we saw the user on
             self.emit("ping-station", station, port)
         elif action == "conntest":
@@ -157,8 +162,7 @@ class StationsList(MainWindowTab):
             
         #asking positions to remote stations
         elif action == "reqpos":
-            print("-------------------")
-            print("MainStation: executing position request to: %s" % station)
+            printlog("MainStation",": executing position request to: %s" % station)
             job = rpc.RPCPositionReport(station, "Position Request")
            
             def log_result(job, state, result):
@@ -173,8 +177,8 @@ class StationsList(MainWindowTab):
                 else:
                       # rc == "OK": 
                     event = main_events.Event(None, result)             
-                    print("MainStation: result returned: %s" % str(result))
-                    print("MainStation: event returned: %s" % event)
+                    printlog("MainStation",": result returned: %s" % str(result))
+                    printlog("MainStation",": event returned: %s" % event)
             job.set_station(station)
             job.connect("state-change", log_result)
 
@@ -186,15 +190,13 @@ class StationsList(MainWindowTab):
             self.__calls = []
             self._update_station_count()
         elif action == "pingall":
-            print("-------------------")
-            print("MainStation: executing ping all")
+            printlog("MainStation",": executing ping all")
             stationlist = self.emit("get-station-list")
             for port in stationlist.keys():
-                print("MainStation: Doing CQCQCQ ping on port %s" % port)
+                printlog("MainStation",": Doing CQCQCQ ping on port %s" % port)
                 self.emit("ping-station", "CQCQCQ", port)
         elif action == "reqposall":
-            print("-------------------")
-            print("MainStation: requesting position to all known stations")
+            printlog("MainStation",": requesting position to all known stations")
             job = rpc.RPCPositionReport("CQCQCQ", "Position Request")
             job.set_station(".")
             stationlist = self.emit("get-station-list")
@@ -221,7 +223,7 @@ class StationsList(MainWindowTab):
                         job.get_dest(),
                         result.get("version", "Unknown"),
                         result.get("os", "Unknown"))
-                    print("MainStation: Station %s reports version info: %s" % (job.get_dest(), result))
+                    printlog("MainStation",": Station %s reports version info: %s" % (job.get_dest(), result))
 
                 else:
                     msg = "No version response from %s" % job.get_dest()
@@ -247,6 +249,12 @@ class StationsList(MainWindowTab):
             job.set_account(vals[0], vals[1], vals[2], vals[4], vals[3])
             job.connect("state-change", log_result)
             self.emit("submit-rpc-job", job, port)
+        elif action == "qrz":
+            import webbrowser
+            callsign = station.split("-")
+            printlog("MainStation",": looking on QRZ.com for %s " % callsign[0])
+            webbrowser.open('https://www.qrz.com/lookup?callsign=%s' % callsign[0], new=2)
+
 
     def _make_station_menu(self, station, port):
         xml = """
@@ -258,6 +266,7 @@ class StationsList(MainWindowTab):
     <menuitem action="sendfile"/>
     <menuitem action="version"/>
     <menuitem action="mcheck"/>
+    <menuitem action="qrz"/>
     <separator/>
     <menuitem action="remove"/>
     <menuitem action="reset"/>
@@ -276,7 +285,8 @@ class StationsList(MainWindowTab):
                    ("remove", _("Remove"), gtk.STOCK_DELETE),
                    ("reset", _("Reset"), gtk.STOCK_JUMP_TO),
                    ("version", _("Get version"), gtk.STOCK_ABOUT),
-                   ("mcheck", _("Request mail check"), None)]
+                   ("mcheck", _("Request mail check"), None),
+                   ("qrz", _("Check on Qrz.com"), None)]
 
         for action, label, stock in actions:
             a = gtk.Action(action, label, None, stock)
@@ -333,7 +343,7 @@ class StationsList(MainWindowTab):
         try:
             self.__view.set_tooltip_column(2)
         except AttributeError:
-            print("MainStation: This version of GTK is old; disabling station tooltips")
+            printlog("MainStation",": This version of GTK is old; disabling station tooltips")
 
         self.__view.connect("button_press_event", self._mouse_cb)
 

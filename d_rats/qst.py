@@ -17,6 +17,10 @@
 
 from __future__ import absolute_import
 from __future__ import print_function
+
+#importing printlog() wrapper
+from .debug import printlog
+
 import gtk
 import pygtk
 import gobject
@@ -46,13 +50,13 @@ try:
     import feedparser
     HAVE_FEEDPARSER = True
 except ImportError as e:
-    print("Qst       : FeedParser not available")
+    printlog("Qst","       : FeedParser not available")
     HAVE_FEEDPARSER = False
 
 try:
     from hashlib import md5
 except ImportError:
-    print("Qst       : Installing hashlib replacement hack")
+    printlog("Qst","       : Installing hashlib replacement hack")
     from .utils import ExternalHash as md5
 
 def do_dprs_calculator(initial=""):
@@ -71,7 +75,7 @@ def do_dprs_calculator(initial=""):
         deficn = gps.DPRS_TO_APRS.get(dsym, "/#")
         defovr = cur[2]
         if defovr not in overlays:
-            print(("Qst       : Overlay %s not in list" % defovr))
+            printlog(("Qst       : Overlay %s not in list" % defovr))
             defovr = " "
     else:
         deficn = "/#"
@@ -139,7 +143,7 @@ class QSTExec(QSTText):
         pform = dplatform.get_platform()
         s, o = pform.run_sync(self.text)
         if s:
-            print(("Qst       : Command failed with status %i" % s))
+            printlog(("Qst       : Command failed with status %i" % s))
 
         return o[:size_limit]
 
@@ -149,7 +153,7 @@ class QSTFile(QSTText):
         try:
             f = NetFile(self.text)
         except:
-            print(("Qst       : Unable to open file `%s'" % self.text))
+            printlog(("Qst       : Unable to open file `%s'" % self.text))
             return
 
         text = f.read()
@@ -212,7 +216,7 @@ class QSTThreadedText(QSTText):
         self.thread = None
 
         if not msg:
-            print("Qst       : Skipping QST because no data was returned")
+            printlog("Qst","       : Skipping QST because no data was returned")
             return
 
         gobject.idle_add(self.emit, "qst-fired",
@@ -220,14 +224,14 @@ class QSTThreadedText(QSTText):
 
     def fire(self):
         if self.thread:
-            print("Qst       : QST thread still running, not starting another")
+            printlog("Qst","       : QST thread still running, not starting another")
             return
 
         # This is a race, but probably pretty safe :)
         self.thread = threading.Thread(target=self.threaded_fire)
         self.thread.setDaemon(True)
         self.thread.start()
-        print("Qst       : Started a thread for QST data...")
+        printlog("Qst","       : Started a thread for QST data...")
 
 class QSTRSS(QSTThreadedText):
     def __init__(self, *args, **kw):
@@ -241,7 +245,7 @@ class QSTRSS(QSTThreadedText):
         try:
             entry = rss.entries[-1]
         except IndexError:
-            print("Qst       : RSS feed had no entries")
+            printlog("Qst","       : RSS feed had no entries")
             return None
 
         try:
@@ -280,7 +284,7 @@ class QSTCAP(QSTThreadedText):
         if self.last_date is None:
             self.determine_starting_item()
 
-        print(("Qst       : Last date is %s" % self.last_date))
+        printlog(("Qst       : Last date is %s" % self.last_date))
 
         cp = cap.CAPParserURL(self.text)
         newev = cp.events_effective_after(self.last_date)
@@ -290,46 +294,166 @@ class QSTCAP(QSTThreadedText):
         try:
             self.last_date = newev[-1].effective
         except IndexError:
-            print("Qst       : CAP feed had no entries")
+            printlog("Qst","       : CAP feed had no entries")
             return None
 
         str = ""
 
         for i in newev:
-            print(("Qst       : Sending CAP that is effective %s" % i.effective))
+            printlog(("Qst       : Sending CAP that is effective %s" % i.effective))
             str += "\r\n-----\r\n%s\r\n-----\r\n" % i.report()
 
         return str        
 
 class QSTWeatherWU(QSTThreadedText):
-    #todo susbtitute with a configurable url
-    pbase = "http://api.wunderground.com/weatherstation/WXCurrentObXML.asp?ID="
-    abase = "http://api.wunderground.com/auto/wui/geo/WXCurrentObXML/index.xml?query="
+    printlog("Qst","       : QSTWeatherWU class retired")
+
+class QSTOpenWeather(QSTThreadedText): 
     def do_qst(self):
+        import urllib
+        import json 
+        weath = ""
         obs = wu.WUObservation()
+        owuri = self.config.get("settings", "qst_owuri")
+        owappid = self.config.get("settings", "qst_owappid")
         
         try:
             t, s = self.text.split("/", 2)
         except Exception as e:
-            print(("Qst       : Unable to split weather QST %s: %s" % (self.text, e)))
+            printlog(("Qst       : Unable to split weather QST %s: %s" % (self.text, e)))
             return None
 
-        try:
-            if t == _("Airport"):
-                base = self.abase
-            elif t == _("Personal"):
-                base = self.pbase
-            else:
-                print(("Qst       : Unknown QSTWeatherWU type %s" % t))
+#---to be restore when forecasts are done
+     #   try:
+        if t == _("Current"):
+            url = owuri +"weather?"+ urllib.urlencode({'q': s, 'appid': owappid})
+            printlog("Qst","       : %s " % url)
+            urlRead = urllib.urlopen(url).read()
+            dataJSON = json.loads(urlRead)
+            printlog(dataJSON)
+    
+            # Check the value of "cod" key is equal to "404", means city is found otherwise, city is not found 
+            if dataJSON["cod"] != "404": 
+            
+                wname = str(dataJSON['name'])
+                wcountry = str(dataJSON['sys']['country'])
+                wlat = str(dataJSON['coord']['lat'])
+                wlon = str(dataJSON['coord']['lon'])
+                wdesc = str(dataJSON['weather'][0]['description'])
+                wtmin = float(dataJSON['main']['temp_min'])
+                wtemp = float(dataJSON['main']['temp'])
+                wtmax = float(dataJSON['main']['temp_max'])
+                whumidity = int(dataJSON['main']['humidity'])
+                wpressure = int(dataJSON['main']['pressure'])
+                wwindspeed = float(dataJSON['wind']['speed'])
+
+                weath = ("\nCurrent weather at %s - %s lat: %s Lon: %s \n" % (wname, wcountry, wlat, wlon))
+                weath = weath + str("Conditions: %s\n" % wdesc)
+                weath = weath + str("Current Temperature: %.2f C (%.2f F) \n" % ((wtemp - 273.0),(wtemp*9/5- 459.67)))
+                weath = weath + str("Minimum Temperature: %.2f C (%.2f F) \n" % ((wtmin - 273.0),(wtmin*9/5- 459.67)))
+                weath = weath + str("Maximum Temperature: %.2f C (%.2f F) \n" % ((wtmax - 273.0),(wtmax*9/5- 459.67)))
+                weath = weath + str("Humidity: %d %% \n" % whumidity)
+                weath = weath + str("Pressure: %d hpa \n" %  wpressure)
+                   #weath = weath + str("Wind Gust:%s km/hr\n" % float(dataJSON['wind']['gust']))  
+                weath = weath + str("Wind Speed: %.2f km/hr\n" % wwindspeed)
+                
+                printlog("Qst","       : %s" % weath)
+                
+                return weath
+            else: 
+                printlog("Qst","       : weather forecast: %s city not found" % s)
                 return None
+            
+        elif t == _("Forecast"): 
+            url = owuri + "forecast?" + urllib.urlencode({'q': s, 'appid': owappid, 'mode': "json"})
+            printlog("Qst","       : %s " % url)
+            urlRead = urllib.urlopen(url).read()
+            dataJSON = json.loads(urlRead)
+            printlog(dataJSON)
+        
+            # Check the value of "cod" key is equal to "404", means city is found otherwise, city is not found 
+            if dataJSON["cod"] != "404": 
+                
+                wname = str(dataJSON['city']['name'])
+                wcountry = str(dataJSON['city']['country'])
+                wlat = str(dataJSON['city']['coord']['lat'])
+                wlon = str(dataJSON['city']['coord']['lon'])
 
-            print(("Qst       : Getting %s%s for %s/%s" % ( base, self.text, t, s)))
-            obs.from_uri(base + s)
-        except Exception as e:
-            print(("Qst       : Error getting weather: %s" % e))
+            
+                weath = ("\nForecast weather for %s - %s lat: %s Lon: %s \n" % (wname, wcountry, wlat, wlon))
+                                    
+              
+                # set date to start iterating through
+                current_date = ''
+                # Iterates through the array of dictionaries named list in json_data
+                for item in dataJSON['list']:
+
+                    # Time of the weather data received, partitioned into 3 hour blocks
+                    wtime = item['dt_txt']
+
+                    # Split the time into date and hour [2018-04-15 06:00:00]
+                    next_date, hour = wtime.split(' ')
+
+                    # Stores the current date and prints it once
+                    if current_date != next_date:
+                        current_date = next_date
+                        year, month, day = current_date.split('-')
+                        date = {'y': year, 'm': month, 'd': day}
+                        weath = weath + ('\n{d}/{m}/{y}'.format(**date))
+                        # Grabs the first 2 integers from our HH:MM:SS string to get the hours
+                    hour = int(hour[:2])
+
+                    # Sets the AM (ante meridiem) or PM (post meridiem) period
+                    if hour < 12:
+                        if hour == 0:
+                            hour = 12
+                        meridiem = 'AM'
+                    else:
+                        if hour > 12:
+                            hour -= 12
+                        meridiem = 'PM'
+                    
+                    # Weather condition
+                    description = item['weather'][0]['description'],
+                    wtemp = item['main']['temp']    
+                    wtmin = item['main']['temp_min']
+                    wtmax = item['main']['temp_max']
+                    whumidity = item['main']['humidity']
+                    wpressure = item['main']['pressure']
+                    wwindspeed = item['wind']['speed']
+                    
+                    #prepare string with weather conditions
+                    # Timestamp as [HH:MM AM/PM]
+                    weath = weath + ('\n%i:00 %s ' % (hour, meridiem))
+                    # Weather forecast and temperatures
+                    weath = weath + ("Weather condition: %s \n" % description )
+                    weath = weath + ("Avg Temp: %.2f C (%.2f F) \n" % ((wtemp - 273.15), (wtemp * 9/5 - 459.67)))
+                    weath = weath + ("Min Temp: %.2f C (%.2f F) \n" % ((wtmin - 273.0),(wtmin*9/5- 459.67)))
+                    weath = weath + ("Max Temp: %.2f C (%.2f F) \n" % ((wtmax - 273.0),(wtmax*9/5- 459.67)))
+                    weath = weath + ("Humidity: %d %%  " % whumidity)
+                    weath = weath + ("Pressure: %d hpa  " %  wpressure)
+                       #weath = weath + str("Wind Gust:%s km/hr\n" % float(dataJSON['wind']['gust']))  
+                    weath = weath + str("Wind Speed: %.2f km/hr\n" % wwindspeed)
+                
+                printlog("Qst","       : %s" % weath) 
+                return  weath
+            else: 
+                printlog("Qst","       : weather forecast: %s city not found" % s)
+                return None
+            
+        else:
+            printlog("Qst","       : Unknown Weather type %s" % t)
             return None
 
-        return str(obs)
+#---to be restore when forecats are done           
+    #    except Exception as e:
+    #        printlog(("Qst       : Error getting weather: %s" % e))
+    #        return None
+        
+
+        return weath
+        #return str(obs)
+
 
 class QSTStation(QSTGPSA):
     def get_source(self, name):
@@ -354,17 +478,17 @@ class QSTStation(QSTGPSA):
         try:
             (group, station) = self.text.split("::", 1)
         except Exception as e:
-            print(("Qst       : QSTStation Error: %s" % e))
+            printlog(("Qst       : QSTStation Error: %s" % e))
             return None
 
         source = self.get_source(group)
         if source is None:
-            print(("Qst       : Unknown group %s" % group))
+            printlog(("Qst       : Unknown group %s" % group))
             return
 
         point = self.get_station(source, station)
         if point is None:
-            print(("Qst       : Unknown station %s in group %s" % (station, group)))
+            printlog(("Qst       : Unknown station %s in group %s" % (station, group)))
             return
 
         self.fix = gps.GPSPosition(point.get_latitude(),
@@ -373,7 +497,7 @@ class QSTStation(QSTGPSA):
         self.fix.set_station(self.fix.station,
                              "VIA %s" % self.config.get("user", "callsign"))
 
-        print(("Qst       : Sending position for %s/%s: %s" % (group, station, self.fix)))
+        printlog(("Qst       : Sending position for %s/%s: %s" % (group, station, self.fix)))
 
         return QSTGPSA.do_qst(self)
 
@@ -623,7 +747,7 @@ class QSTStationEditWidget(QSTEditWidget):
                            self.__station.get_active_text())
 
 class QSTWUEditWidget(QSTEditWidget):
-    label_text = _("Enter a WeatherUnderground station ID:")
+    label_text = _("Enter an Open Weather station name:")
 
     def __init__(self):
         QSTEditWidget.__init__(self)
@@ -640,7 +764,7 @@ class QSTWUEditWidget(QSTEditWidget):
         self.__station.show()
         hbox.pack_start(self.__station, 0, 0, 0)
 
-        types = [_("Airport"), _("Personal")]
+        types = [_("Current"), _("Forecast")]
         self.__type = miscwidgets.make_choice(types, False, types[0])
         self.__type.show()
         hbox.pack_start(self.__type, 0, 0, 0)
@@ -653,8 +777,8 @@ class QSTWUEditWidget(QSTEditWidget):
         try:
             t, s = content.split("/", 2)
         except:
-            print(("Qst       : Unable to split `%s'" % content))
-            t = _("Airport")
+            printlog(("Qst       : Unable to split `%s'" % content))
+            t = _("Current")
             s = _("UNKNOWN")
 
         combo_select(self.__type, t)
@@ -685,7 +809,7 @@ class QSTEditDialog(gtk.Dialog):
         lab.show()
         hbox.pack_start(lab, 0, 0 , 0)
 
-        intervals = ["1", "5", "10", "20", "30", "60", ":30", ":15"]
+        intervals = ["1", "5", "10", "20", "30", "60", "120", "180", ":30", ":15"]
         self._freq = make_choice(intervals, True, default="60")
         self._freq.set_size_request(75, -1)
         self._freq.show()
@@ -704,7 +828,7 @@ class QSTEditDialog(gtk.Dialog):
         return hbox
 
     def __init__(self, config, ident, parent=None):
-        print("qst      : defining qst types")
+        printlog("Qst","      : defining qst types")
         self._types = {
             _("Text") : QSTTextEditWidget(),
             _("File") : QSTFileEditWidget(),
@@ -714,7 +838,7 @@ class QSTEditDialog(gtk.Dialog):
             _("RSS")  : QSTRSSEditWidget(),
             _("CAP")  : QSTCAPEditWidget(),
             _("Station") : QSTStationEditWidget(),
-            _("Weather (WU)") : QSTWUEditWidget(),
+            _("OpenWeather") : QSTWUEditWidget(),
             }
 
         gtk.Dialog.__init__(self,
@@ -767,10 +891,13 @@ def get_qst_class(typestr):
         _("Station") : QSTStation,
         _("RSS")     : QSTRSS,
         _("CAP")     : QSTCAP,
-        _("Weather (WU)") : QSTWeatherWU,
+        _("Weather (WU)") : QSTWeatherWU, #legacy class
+        _("OpenWeather") : QSTOpenWeather,
         }
 
     if not HAVE_FEEDPARSER:
+    #the  HAVE_FEEDPARSER varibale is setup at d-rats launch when it checks if feedparses can be imported 
+    #for any reason feedparser import could fail also if the module is compiled (as it happens in my case on Windows10)       
         del classes[_("RSS")]
 
     return classes.get(typestr, None)
